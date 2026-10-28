@@ -31,8 +31,15 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: 运行测试
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: 运行 Python 测试
         run: pytest -q
+
+      - name: 运行网页脚本测试
+        run: node --test
 
       - name: 生成网页
         run: python build.py

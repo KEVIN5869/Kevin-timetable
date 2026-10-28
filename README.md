@@ -7,6 +7,7 @@
 | 文件 | 作用 |
 |---|---|
 | `timetable.py` | 核心逻辑：解析 ics、换算北京时间、分组、生成网页 |
+| `static/app.js` | 网页脚本：选本周、翻页、标注今天/明天（会被嵌进网页） |
 | `build.py` | 拉取 ics，生成 `_site/index.html` |
 | `tests/` | 测试（使用假的样例课表 `tests/fixtures/sample.ics`） |
 | `.github/workflows/deploy.yml` | 自动更新：每 20 分钟测试、生成并发布 |
@@ -17,7 +18,8 @@
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/pytest          # 跑测试
+.venv/bin/pytest          # 跑 Python 测试
+node --test               # 跑网页脚本测试（需要 Node.js）
 .venv/bin/python build.py # 生成网页到 _site/index.html
 ```
 

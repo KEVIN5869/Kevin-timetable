@@ -12,3 +12,6 @@ _site/
 
 # macOS
 .DS_Store
+
+# 本机的预览配置
+.claude/

@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from html import escape
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from icalendar import Calendar
@@ -120,11 +121,38 @@ def beijing_date(moment: datetime) -> date:
     return moment.astimezone(BEIJING).date()
 
 
-def upcoming(lessons: list[Lesson], now: datetime) -> list[Lesson]:
-    """从北京时间的"今天"开始的课程（包括今天已经上完的），按开始时间排序。"""
-    today = beijing_date(now)
-    kept = [lesson for lesson in lessons if beijing_date(lesson.start) >= today]
-    return sorted(kept, key=lambda lesson: lesson.start)
+def week_start(day: date) -> date:
+    """这一天所在周的周一。"""
+    return day - timedelta(days=day.weekday())
+
+
+Week = tuple[date, list[tuple[date, list[Lesson]]]]  # (周一, [(日期, 课程)])
+
+
+def group_by_week(lessons: list[Lesson], now: datetime) -> list[Week]:
+    """按北京时间的周（周一到周日）分组，每周里再按日期分组。
+
+    周是连续的：中间没课的周也会保留（内容为空）。
+    范围至少覆盖"本周"和"下周"，这样网页过了周日也总能翻到新的一周。
+    """
+    ordered = sorted(lessons, key=lambda lesson: lesson.start)
+    this_week = week_start(beijing_date(now))
+    first = this_week
+    last = this_week + timedelta(weeks=1)
+    if ordered:
+        first = min(first, week_start(beijing_date(ordered[0].start)))
+        last = max(last, week_start(beijing_date(ordered[-1].start)))
+
+    days_by_week: dict[date, list[tuple[date, list[Lesson]]]] = {}
+    for day, day_lessons in group_by_day(ordered):
+        days_by_week.setdefault(week_start(day), []).append((day, day_lessons))
+
+    weeks = []
+    monday = first
+    while monday <= last:
+        weeks.append((monday, days_by_week.get(monday, [])))
+        monday += timedelta(weeks=1)
+    return weeks
 
 
 def group_by_day(lessons: list[Lesson]) -> list[tuple[date, list[Lesson]]]:
@@ -149,17 +177,24 @@ def format_time_range(lesson: Lesson) -> str:
     return f"{start:%H:%M} – {end_text}"
 
 
-def format_day(day: date, today: date) -> str:
-    """例如 "11月2日 周一 · 今天"。"""
-    text = f"{day.month}月{day.day}日 周{WEEKDAYS[day.weekday()]}"
-    if day == today:
-        text += " · 今天"
-    elif day == today + timedelta(days=1):
-        text += " · 明天"
-    return text
+def format_day(day: date) -> str:
+    """例如 "11月2日 周一"。"今天/明天"由网页里的脚本实时标注。"""
+    return f"{day.month}月{day.day}日 周{WEEKDAYS[day.weekday()]}"
+
+
+def format_week_range(monday: date) -> str:
+    """例如 "10月26日 – 11月1日"。"""
+    sunday = monday + timedelta(days=6)
+    return f"{monday.month}月{monday.day}日 – {sunday.month}月{sunday.day}日"
+
+
+def epoch_ms(moment: datetime) -> int:
+    """给网页脚本用的时间戳（毫秒）。"""
+    return int(moment.timestamp() * 1000)
 
 
 PAGE_STYLE = """
+[hidden] { display: none !important; }
 body { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif;
        margin: 0 auto; max-width: 640px; padding: 16px; color: #222; background: #fff;
        line-height: 1.5; }
@@ -172,7 +207,16 @@ h2 { font-size: 17px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2p
 .en { color: #777; font-size: 12px; }
 .room { color: #555; font-size: 14px; }
 .empty { color: #666; }
+.pager { display: flex; align-items: center; justify-content: space-between; margin: 0 0 8px; }
+.pager button { font-size: 20px; width: 40px; height: 40px; }
+.pager-text { text-align: center; }
+.week-label { font-weight: bold; }
+.week-range { color: #666; font-size: 13px; }
+.back { display: block; margin: 0 auto 8px; }
+.js .week-title { display: none; }
 """
+
+SCRIPT_PATH = Path(__file__).parent / "static" / "app.js"
 
 
 def render_course_name(name: str) -> str:
@@ -183,26 +227,38 @@ def render_course_name(name: str) -> str:
     return f'{escape(zh)} <small class="en">({escape(name)})</small>'
 
 
+def render_lesson(lesson: Lesson) -> str:
+    return (
+        f'<article class="lesson" data-start="{epoch_ms(lesson.start)}" data-end="{epoch_ms(lesson.end)}">'
+        f'<div class="time">{escape(format_time_range(lesson))}</div>'
+        f'<div class="name">{render_course_name(lesson.name)}</div>'
+        f'<div class="room">{escape(room_zh(lesson.room))}</div>'
+        "</article>"
+    )
+
+
+def render_week(monday: date, days: list[tuple[date, list[Lesson]]]) -> str:
+    week_range = escape(format_week_range(monday))
+    parts = [
+        f'<section class="week" data-week="{monday.isoformat()}" data-range="{week_range}">',
+        f'<h2 class="week-title">{week_range}</h2>',
+    ]
+    for day, day_lessons in days:
+        parts.append(f'<div class="day" data-date="{day.isoformat()}">')
+        parts.append(f'<h3>{escape(format_day(day))} <span class="day-tag"></span></h3>')
+        parts.extend(render_lesson(lesson) for lesson in day_lessons)
+        parts.append("</div>")
+    if not days:
+        parts.append('<p class="empty">这周没有课 🎉</p>')
+    parts.append("</section>")
+    return "\n".join(parts)
+
+
 def render_html(lessons: list[Lesson], now: datetime) -> str:
-    """生成完整网页。lessons 需已经过 upcoming() 过滤排序。"""
-    today = beijing_date(now)
+    """生成完整网页：包含所有周，网页脚本负责显示本周和翻页。"""
     updated = now.astimezone(BEIJING).strftime("%Y-%m-%d %H:%M")
-
-    parts = []
-    for day, day_lessons in group_by_day(lessons):
-        parts.append(f"<h2>{escape(format_day(day, today))}</h2>")
-        for lesson in day_lessons:
-            parts.append(
-                '<div class="lesson">'
-                f'<div class="time">{escape(format_time_range(lesson))}</div>'
-                f'<div class="name">{render_course_name(lesson.name)}</div>'
-                f'<div class="room">{escape(room_zh(lesson.room))}</div>'
-                "</div>"
-            )
-    if not parts:
-        parts.append('<p class="empty">近期没有课 🎉</p>')
-
-    body = "\n".join(parts)
+    body = "\n".join(render_week(monday, days) for monday, days in group_by_week(lessons, now))
+    script = SCRIPT_PATH.read_text(encoding="utf-8")
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -214,7 +270,18 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 <body>
 <h1>Kevin 的课表</h1>
 <p class="updated">时间均为北京时间 · 最后更新：{updated}</p>
+<nav class="pager" hidden>
+<button type="button" class="prev" aria-label="上一周">‹</button>
+<div class="pager-text"><div class="week-label"></div><div class="week-range"></div></div>
+<button type="button" class="next" aria-label="下一周">›</button>
+</nav>
+<button type="button" class="back" hidden>回到本周</button>
+<main>
 {body}
+</main>
+<script>
+{script}
+</script>
 </body>
 </html>
 """
@@ -222,4 +289,4 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 
 def build_page(ics_data: str | bytes, now: datetime) -> str:
     """从 ics 文本一步生成网页。"""
-    return render_html(upcoming(parse_lessons(ics_data), now), now)
+    return render_html(parse_lessons(ics_data), now)
