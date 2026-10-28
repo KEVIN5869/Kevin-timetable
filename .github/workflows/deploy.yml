@@ -1,0 +1,56 @@
+# 每 20 分钟：跑测试 → 拉取 ics 生成网页 → 发布到 GitHub Pages
+# 任何一步失败都不会发布，线上保持上一次成功的网页。
+name: 更新课表
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # GitHub 的定时任务可能会延迟几分钟到几十分钟
+  push:
+    branches: [main]
+  workflow_dispatch:          # 允许在网页上手动点"Run workflow"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 运行测试
+        run: pytest -q
+
+      - name: 生成网页
+        run: python build.py
+        env:
+          ICS_URL: ${{ secrets.ICS_URL }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
