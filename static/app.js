@@ -1,4 +1,4 @@
-// 课表网页的脚本：选出"本周"、翻页、标注"今天/明天"。
+// 课表网页的脚本：选出"本周"、翻页、标注"今天/明天"、正在上的课标 NOW、已上完的课变淡。
 // 时间一律按北京时间（UTC+8，中国没有夏令时）计算，不受手机时区设置影响。
 // 上半部分是纯函数（有测试：tests/app.test.js），下半部分把结果显示到网页上。
 (function () {
@@ -74,7 +74,32 @@
     };
   }
 
+  // 一节课相对"现在"的状态：已上完 / 正在上 / 还没开始
+  function lessonState(startMs, endMs, nowMs) {
+    if (nowMs >= endMs) return "past";
+    if (nowMs >= startMs) return "now";
+    return "future";
+  }
+
+  // 每次刷新时决定显示哪一周：如果正停在"本周"，跨周后自动跟到新的本周；
+  // 如果是手动翻到别的周，就留在那里不动
+  function followIndex(weekKeys, index, oldCurrentKey, newCurrentKey) {
+    if (index === pickWeekIndex(weekKeys, oldCurrentKey)) {
+      return pickWeekIndex(weekKeys, newCurrentKey);
+    }
+    return index;
+  }
+
+  // 网页开着太久（超过 30 分钟）再回来看时，重新加载拿最新课表
+  var RELOAD_AFTER_MS = 30 * 60 * 1000;
+  function shouldReload(loadedMs, nowMs) {
+    return nowMs - loadedMs > RELOAD_AFTER_MS;
+  }
+
   var api = {
+    lessonState: lessonState,
+    followIndex: followIndex,
+    shouldReload: shouldReload,
     dateKey: dateKey,
     addDays: addDays,
     weekKey: weekKey,
@@ -99,11 +124,16 @@
   var weekKeys = sections.map(function (s) { return s.getAttribute("data-week"); });
   var pager = doc.querySelector(".pager");
   var back = doc.querySelector(".back");
-  var index = pickWeekIndex(weekKeys, weekKey(Date.now()));
+  var loadedAt = Date.now();
+  var shownCurrentKey = weekKey(loadedAt);
+  var index = pickWeekIndex(weekKeys, shownCurrentKey);
+  var lessons = Array.prototype.slice.call(doc.querySelectorAll(".lesson"));
 
   function render() {
     var now = Date.now();
     var currentKey = weekKey(now);
+    index = followIndex(weekKeys, index, shownCurrentKey, currentKey);
+    shownCurrentKey = currentKey;
     var state = pagerState(weekKeys, index, currentKey);
     sections.forEach(function (section, i) {
       section.hidden = i !== index;
@@ -118,6 +148,15 @@
       var tag = day.querySelector(".day-tag");
       tag.textContent = label;
       tag.hidden = !label;
+    });
+    lessons.forEach(function (lesson) {
+      var status = lessonState(
+        Number(lesson.getAttribute("data-start")),
+        Number(lesson.getAttribute("data-end")),
+        now
+      );
+      lesson.classList.toggle("is-now", status === "now");
+      lesson.classList.toggle("is-past", status === "past");
     });
   }
 
@@ -134,4 +173,15 @@
 
   pager.hidden = false;
   render();
+  setInterval(render, 30 * 1000); // 每 30 秒更新 NOW 标签
+
+  // 手机切回这个网页时：立即刷新状态；开着太久就重新加载拿新课表
+  doc.addEventListener("visibilitychange", function () {
+    if (doc.visibilityState !== "visible") return;
+    if (shouldReload(loadedAt, Date.now())) {
+      location.reload();
+    } else {
+      render();
+    }
+  });
 })();

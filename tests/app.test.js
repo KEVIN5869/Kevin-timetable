@@ -80,3 +80,34 @@ test("pagerState 翻到第一周和最后一周时不能再翻", () => {
 test("pagerState 本周不在列表里时不显示回到本周", () => {
   assert.equal(app.pagerState(["2026-10-26"], 0, "2026-11-02").showBack, false);
 });
+
+test("lessonState 判断已上完、正在上、还没开始（含边界）", () => {
+  const start = utc("2026-11-02T11:45:00Z");
+  const end = utc("2026-11-02T15:00:00Z");
+  assert.equal(app.lessonState(start, end, start - 1), "future");
+  assert.equal(app.lessonState(start, end, start), "now");        // 开始那一刻就算 NOW
+  assert.equal(app.lessonState(start, end, end - 1), "now");
+  assert.equal(app.lessonState(start, end, end), "past");         // 下课那一刻就不算了
+});
+
+test("followIndex 停在本周时，跨周后跟到新的本周", () => {
+  const weeks = ["2026-10-26", "2026-11-02", "2026-11-09"];
+  assert.equal(app.followIndex(weeks, 0, "2026-10-26", "2026-11-02"), 1);
+});
+
+test("followIndex 手动翻到别的周时，留在原地", () => {
+  const weeks = ["2026-10-26", "2026-11-02", "2026-11-09"];
+  assert.equal(app.followIndex(weeks, 2, "2026-10-26", "2026-11-02"), 2);
+  assert.equal(app.followIndex(weeks, 2, "2026-10-26", "2026-10-26"), 2);
+});
+
+test("followIndex 没跨周时不变", () => {
+  const weeks = ["2026-10-26", "2026-11-02"];
+  assert.equal(app.followIndex(weeks, 0, "2026-10-26", "2026-10-26"), 0);
+});
+
+test("shouldReload 开着超过 30 分钟才重新加载", () => {
+  const loaded = utc("2026-11-02T04:00:00Z");
+  assert.equal(app.shouldReload(loaded, loaded + 30 * 60 * 1000), false);
+  assert.equal(app.shouldReload(loaded, loaded + 30 * 60 * 1000 + 1), true);
+});

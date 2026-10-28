@@ -285,3 +285,10 @@ def test_page_shows_translated_names():
 def test_hidden_attribute_always_hides():
     # 按钮等元素有自己的 display 样式，必须保证 hidden 仍然能把它们藏起来
     assert "[hidden] { display: none !important; }" in build_page(SAMPLE, NOW)
+
+
+def test_each_lesson_has_hidden_now_tag():
+    page = build_page(SAMPLE, NOW)
+    assert page.count('<span class="now-tag">● NOW</span>') == 6
+    assert ".lesson.is-now .now-tag { display: inline-block; }" in page
+    assert ".lesson.is-past {" in page

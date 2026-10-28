@@ -214,6 +214,12 @@ h2 { font-size: 17px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2p
 .week-range { color: #666; font-size: 13px; }
 .back { display: block; margin: 0 auto 8px; }
 .js .week-title { display: none; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.now-tag { display: none; background: #22a447; color: #fff; font-size: 12px; font-weight: bold;
+           padding: 1px 9px; border-radius: 10px; }
+.lesson.is-now { border: 2px solid #22a447; }
+.lesson.is-now .now-tag { display: inline-block; }
+.lesson.is-past { opacity: 0.45; }
 """
 
 SCRIPT_PATH = Path(__file__).parent / "static" / "app.js"
@@ -230,7 +236,10 @@ def render_course_name(name: str) -> str:
 def render_lesson(lesson: Lesson) -> str:
     return (
         f'<article class="lesson" data-start="{epoch_ms(lesson.start)}" data-end="{epoch_ms(lesson.end)}">'
-        f'<div class="time">{escape(format_time_range(lesson))}</div>'
+        '<div class="top">'
+        f'<span class="time">{escape(format_time_range(lesson))}</span>'
+        '<span class="now-tag">● NOW</span>'
+        "</div>"
         f'<div class="name">{render_course_name(lesson.name)}</div>'
         f'<div class="room">{escape(room_zh(lesson.room))}</div>'
         "</article>"
