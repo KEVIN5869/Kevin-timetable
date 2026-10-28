@@ -57,3 +57,12 @@ def test_fetch_rejects_non_ics(monkeypatch):
                         lambda request, timeout: FakeResponse(b"<html>Login required</html>"))
     with pytest.raises(ValueError):
         build.fetch_ics("https://example.com/a.ics")
+
+
+def test_untranslated_courses_produce_warnings():
+    from pathlib import Path
+    sample = (Path(__file__).parent / "fixtures" / "sample.ics").read_bytes()
+    warnings = build.untranslated_warnings(sample)
+    assert len(warnings) == 3
+    assert all(line.startswith("::warning::") for line in warnings)
+    assert any("Midnight Course" in line for line in warnings)

@@ -13,7 +13,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from timetable import build_page
+from timetable import build_page, parse_lessons, untranslated_courses
 
 ROOT = Path(__file__).parent
 OUTPUT = ROOT / "_site" / "index.html"
@@ -40,9 +40,20 @@ def fetch_ics(url: str) -> bytes:
     return data
 
 
+def untranslated_warnings(ics_data: bytes) -> list[str]:
+    """没有中文翻译的课程，生成 GitHub Actions 的警告行（会显示在运行记录里）。"""
+    return [
+        f"::warning::课程还没有中文翻译，请在 timetable.py 的 COURSE_NAMES_ZH 里补上：{name}"
+        for name in untranslated_courses(parse_lessons(ics_data))
+    ]
+
+
 def main() -> None:
     now = datetime.now(timezone.utc)
-    html = build_page(fetch_ics(load_ics_url()), now)
+    ics_data = fetch_ics(load_ics_url())
+    for warning in untranslated_warnings(ics_data):
+        print(warning)
+    html = build_page(ics_data, now)
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(html, encoding="utf-8")
     print(f"已生成 {OUTPUT.relative_to(ROOT)}")

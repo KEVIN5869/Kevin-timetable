@@ -12,6 +12,7 @@ TimeEdit 的字段用法和常规不同：
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from html import escape
@@ -21,6 +22,30 @@ from icalendar import Calendar
 
 BEIJING = ZoneInfo("Asia/Shanghai")
 WEEKDAYS = "一二三四五六日"
+
+# 课程名中文翻译。出现新课时在这里补一行；没翻译的课会直接显示英文。
+COURSE_NAMES_ZH = {
+    "Strategy and business Diagnostic": "战略与商业诊断",
+    "Sustainable Marketing": "可持续营销",
+    "Luxury Marketing": "奢侈品营销",
+    "Digital Marketing": "数字营销",
+    "Introduction to Applied Research (IAR)": "应用研究导论",
+    "International perspective on sustainability issues": "可持续发展问题的国际视角",
+    "ANG : Speaking English in the Workplace": "职场英语口语",
+}
+
+# DESCRIPTION 里的地点类型
+PLACE_KINDS_ZH = {
+    "Salle de classe": "教室",
+    "Amphitheatre": "阶梯教室",
+    "Amphithéâtre": "阶梯教室",
+}
+
+# DESCRIPTION 里的课程类型；"Cours"（普通讲课）不显示
+LESSON_TYPES_ZH = {
+    "Cours": "",
+    "Examen": "考试",
+}
 
 
 @dataclass(frozen=True)
@@ -57,6 +82,38 @@ def parse_lessons(ics_data: str | bytes) -> list[Lesson]:
             )
         )
     return lessons
+
+
+def course_name_zh(name: str) -> str | None:
+    """课程的中文名；没有翻译时返回 None。"""
+    return COURSE_NAMES_ZH.get(name)
+
+
+def untranslated_courses(lessons: list[Lesson]) -> list[str]:
+    """还没有中文翻译的课程名（去重、排序），用于提醒补翻译。"""
+    return sorted({lesson.name for lesson in lessons if course_name_zh(lesson.name) is None})
+
+
+def _translate_place(place: str) -> str:
+    """"Salle de classe (0.08)" → "教室 0.08"；认不出的原样返回。"""
+    match = re.fullmatch(r"(.+?)\s*\((.+)\)", place)
+    if match and match.group(1) in PLACE_KINDS_ZH:
+        return f"{PLACE_KINDS_ZH[match.group(1)]} {match.group(2)}"
+    return place
+
+
+def room_zh(room: str) -> str:
+    """把 "Cours, Salle de classe (0.08)" 翻译成 "教室 0.08"。
+
+    课程类型不是普通讲课时放在前面，例如 "考试 · 教室 0.08"。
+    """
+    kind, sep, place = room.partition(",")
+    if not sep:
+        return _translate_place(room.strip())
+    kind = kind.strip()
+    place = _translate_place(place.strip())
+    kind_zh = LESSON_TYPES_ZH.get(kind, kind)
+    return f"{kind_zh} · {place}" if kind_zh else place
 
 
 def beijing_date(moment: datetime) -> date:
@@ -112,9 +169,18 @@ h2 { font-size: 17px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2p
 .lesson { padding: 10px 12px; margin-bottom: 8px; background: #f5f5f7; border-radius: 8px; }
 .time { font-weight: bold; }
 .name { font-size: 16px; }
+.en { color: #777; font-size: 12px; }
 .room { color: #555; font-size: 14px; }
 .empty { color: #666; }
 """
+
+
+def render_course_name(name: str) -> str:
+    """中文名 + 小字英文原名；没有翻译时只显示英文。返回 HTML。"""
+    zh = course_name_zh(name)
+    if zh is None:
+        return escape(name)
+    return f'{escape(zh)} <small class="en">({escape(name)})</small>'
 
 
 def render_html(lessons: list[Lesson], now: datetime) -> str:
@@ -129,8 +195,8 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
             parts.append(
                 '<div class="lesson">'
                 f'<div class="time">{escape(format_time_range(lesson))}</div>'
-                f'<div class="name">{escape(lesson.name)}</div>'
-                f'<div class="room">{escape(lesson.room)}</div>'
+                f'<div class="name">{render_course_name(lesson.name)}</div>'
+                f'<div class="room">{escape(room_zh(lesson.room))}</div>'
                 "</div>"
             )
     if not parts:

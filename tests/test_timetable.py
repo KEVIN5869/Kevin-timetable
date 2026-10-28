@@ -16,12 +16,17 @@ from pathlib import Path
 import pytest
 
 from timetable import (
+    COURSE_NAMES_ZH,
     build_page,
+    course_name_zh,
     format_day,
     format_time_range,
     group_by_day,
     parse_lessons,
+    render_course_name,
     render_html,
+    room_zh,
+    untranslated_courses,
     upcoming,
 )
 
@@ -123,7 +128,7 @@ def test_page_shows_lessons_and_update_time():
     assert "11月2日 周一 · 今天" in page
     assert "11月3日 周二 · 明天" in page
     assert "23:15 – 次日 02:30" in page
-    assert "Cours, Salle de classe (0.03)" in page
+    assert "教室 0.03" in page
     assert "Yesterday Course" not in page
     assert "Cancelled Course" not in page
 
@@ -150,3 +155,63 @@ def test_page_when_no_lessons():
     page = render_html([], NOW)
     assert "近期没有课" in page
     assert "最后更新：2026-11-02 12:00" in page
+
+
+# ---------- 中文翻译 ----------
+
+@pytest.mark.parametrize("english, chinese", [
+    ("Strategy and business Diagnostic", "战略与商业诊断"),
+    ("Sustainable Marketing", "可持续营销"),
+    ("Luxury Marketing", "奢侈品营销"),
+    ("Digital Marketing", "数字营销"),
+    ("Introduction to Applied Research (IAR)", "应用研究导论"),
+    ("International perspective on sustainability issues", "可持续发展问题的国际视角"),
+    ("ANG : Speaking English in the Workplace", "职场英语口语"),
+])
+def test_course_names_are_translated(english, chinese):
+    assert course_name_zh(english) == chinese
+
+
+def test_all_seven_courses_have_translations():
+    assert len(COURSE_NAMES_ZH) == 7
+
+
+def test_unknown_course_has_no_translation():
+    assert course_name_zh("Brand New Course") is None
+
+
+def test_course_name_shows_chinese_with_small_english():
+    html = render_course_name("Digital Marketing")
+    assert html == '数字营销 <small class="en">(Digital Marketing)</small>'
+
+
+def test_untranslated_course_shows_english_only():
+    assert render_course_name("R&D <Lab>") == "R&amp;D &lt;Lab&gt;"
+
+
+def test_untranslated_courses_lists_missing_names(lessons):
+    assert untranslated_courses(lessons) == [
+        "Midnight Course",
+        "R&D <Lab>",
+        "Yesterday Course",
+    ]
+
+
+@pytest.mark.parametrize("room, expected", [
+    ("Cours, Salle de classe (0.08)", "教室 0.08"),
+    ("Cours, Amphitheatre (A)", "阶梯教室 A"),
+    ("Examen, Salle de classe (1.13)", "考试 · 教室 1.13"),
+    ("TD, Salle de classe (2.04)", "TD · 教室 2.04"),          # 不认识的类型原样保留
+    ("Cours, Gymnase (B)", "Gymnase (B)"),                     # 不认识的地点原样保留
+    ("Salle de classe (0.01)", "教室 0.01"),                    # 没有类型
+    ("", ""),
+])
+def test_room_translation(room, expected):
+    assert room_zh(room) == expected
+
+
+def test_page_shows_translated_names():
+    page = build_page(SAMPLE, NOW)
+    assert '战略与商业诊断 <small class="en">(Strategy and business Diagnostic)</small>' in page
+    assert "阶梯教室 A" in page
+    assert "Cours," not in page
