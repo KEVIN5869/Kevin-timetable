@@ -292,3 +292,34 @@ def test_each_lesson_has_hidden_now_tag():
     assert page.count('<span class="now-tag">● NOW</span>') == 6
     assert ".lesson.is-now .now-tag { display: inline-block; }" in page
     assert ".lesson.is-past {" in page
+
+
+# ---------- 配色 ----------
+
+from timetable import COLORS, COURSE_COLORS, course_color  # noqa: E402
+
+
+def test_every_translated_course_has_its_own_color():
+    assert set(COURSE_COLORS) == set(COURSE_NAMES_ZH)
+    assert len(set(COURSE_COLORS.values())) == len(COURSE_COLORS)  # 颜色互不相同
+    assert all(color in COLORS for color in COURSE_COLORS.values())
+
+
+def test_unknown_course_is_gray():
+    assert course_color("Brand New Course") == "gray"
+
+
+def test_cards_use_course_colors():
+    page = build_page(SAMPLE, NOW)
+    assert '<article class="lesson c-purple"' in page   # Strategy and business Diagnostic
+    assert '<article class="lesson c-blue"' in page     # Digital Marketing
+    assert '<article class="lesson c-gray"' in page     # 未登记的课
+    for key in COLORS:
+        assert f".c-{key} {{ background:" in page
+
+
+def test_day_tags_have_colors_for_today_and_tomorrow():
+    page = build_page(SAMPLE, NOW)
+    assert '.day-tag[data-label="今天"]' in page
+    assert '.day-tag[data-label="明天"]' in page
+    assert 'tag.setAttribute("data-label", label)' in page

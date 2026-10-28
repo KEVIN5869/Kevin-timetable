@@ -147,6 +147,7 @@
       var label = dayLabel(day.getAttribute("data-date"), now);
       var tag = day.querySelector(".day-tag");
       tag.textContent = label;
+      tag.setAttribute("data-label", label); // 样式按"今天/明天"配色
       tag.hidden = !label;
     });
     lessons.forEach(function (lesson) {

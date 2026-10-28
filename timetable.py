@@ -193,34 +193,92 @@ def epoch_ms(moment: datetime) -> int:
     return int(moment.timestamp() * 1000)
 
 
+# 每门课一种颜色：(卡片底色, 标题文字色, 次要文字色)
+COLORS = {
+    "purple": ("#EEEDFE", "#3C3489", "#534AB7"),
+    "teal": ("#E1F5EE", "#085041", "#0F6E56"),
+    "pink": ("#FBEAF0", "#72243E", "#993556"),
+    "blue": ("#E6F1FB", "#0C447C", "#185FA5"),
+    "amber": ("#FAEEDA", "#633806", "#854F0B"),
+    "coral": ("#FAECE7", "#712B13", "#993C1D"),
+    "slate": ("#ECEFF5", "#2B3A55", "#4A5B7A"),
+    "gray": ("#F1EFE8", "#2C2C2A", "#5F5E5A"),  # 没登记颜色的新课
+}
+
+COURSE_COLORS = {
+    "Strategy and business Diagnostic": "purple",
+    "Sustainable Marketing": "teal",
+    "Luxury Marketing": "pink",
+    "Digital Marketing": "blue",
+    "Introduction to Applied Research (IAR)": "amber",
+    "ANG : Speaking English in the Workplace": "coral",
+    "International perspective on sustainability issues": "slate",
+}
+
+
+def course_color(name: str) -> str:
+    return COURSE_COLORS.get(name, "gray")
+
+
+def color_styles() -> str:
+    rules = []
+    for key, (background, title, subtitle) in COLORS.items():
+        rules.append(
+            f".c-{key} {{ background: {background}; }}\n"
+            f".c-{key} .time, .c-{key} .name {{ color: {title}; }}\n"
+            f".c-{key} .room, .c-{key} .en {{ color: {subtitle}; }}"
+        )
+    return "\n".join(rules)
+
+
 PAGE_STYLE = """
 [hidden] { display: none !important; }
-body { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", sans-serif;
-       margin: 0 auto; max-width: 640px; padding: 16px; color: #222; background: #fff;
-       line-height: 1.5; }
-h1 { font-size: 22px; margin: 0 0 4px; }
-.updated { color: #666; font-size: 14px; margin: 0 0 16px; }
-h2 { font-size: 17px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #ddd; }
-.lesson { padding: 10px 12px; margin-bottom: 8px; background: #f5f5f7; border-radius: 8px; }
-.time { font-weight: bold; }
-.name { font-size: 16px; }
-.en { color: #777; font-size: 12px; }
-.room { color: #555; font-size: 14px; }
-.empty { color: #666; }
-.pager { display: flex; align-items: center; justify-content: space-between; margin: 0 0 8px; }
-.pager button { font-size: 20px; width: 40px; height: 40px; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+       margin: 0 auto; max-width: 560px; padding: 20px 16px 32px; color: #2C2C2A;
+       background: #FFFBF6; line-height: 1.5; -webkit-text-size-adjust: 100%; }
+h1 { font-size: 22px; margin: 0; }
+.heart { color: #D4537E; }
+.updated { color: #888780; font-size: 12px; margin: 2px 0 16px; }
+
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+         background: #EEEDFE; border-radius: 16px; padding: 8px 10px; margin: 0 0 10px; }
+.pager button { width: 36px; height: 36px; border: none; border-radius: 50%; background: #fff;
+                color: #534AB7; font-size: 22px; line-height: 1; cursor: pointer;
+                box-shadow: 0 1px 3px rgba(60, 52, 137, 0.15); }
+.pager button:disabled { opacity: 0.35; box-shadow: none; cursor: default; }
 .pager-text { text-align: center; }
-.week-label { font-weight: bold; }
-.week-range { color: #666; font-size: 13px; }
-.back { display: block; margin: 0 auto 8px; }
+.week-label { font-weight: 600; color: #3C3489; }
+.week-range { font-size: 12px; color: #534AB7; }
+.back { display: block; margin: 0 auto 10px; padding: 4px 14px; font-size: 13px;
+        border: 1px solid #ED93B1; border-radius: 14px; background: #fff; color: #993556; }
+
+.week-title { font-size: 16px; color: #534AB7; margin: 24px 0 4px; }
 .js .week-title { display: none; }
-.top { display: flex; justify-content: space-between; align-items: center; }
-.now-tag { display: none; background: #22a447; color: #fff; font-size: 12px; font-weight: bold;
-           padding: 1px 9px; border-radius: 10px; }
-.lesson.is-now { border: 2px solid #22a447; }
+h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 18px 0 8px; }
+.day-tag { font-size: 11px; font-weight: normal; padding: 1px 8px; border-radius: 10px; }
+.day-tag[data-label="今天"] { background: #FBEAF0; color: #993556; }
+.day-tag[data-label="明天"] { background: #E6F1FB; color: #0C447C; }
+
+.lesson { padding: 10px 12px; margin-bottom: 8px; border-radius: 14px; border: 2px solid transparent; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.time { font-weight: 600; }
+.name { font-weight: 600; font-size: 15px; margin-top: 2px; }
+.en { font-weight: normal; font-size: 11px; }
+.room { font-size: 13px; margin-top: 2px; }
+.room::before { content: "📍 "; }
+.room:empty::before { content: ""; }
+
+.now-tag { display: none; background: #22A447; color: #fff; font-size: 11px; font-weight: 600;
+           padding: 1px 9px; border-radius: 10px; white-space: nowrap; }
+.lesson.is-now { border-color: #22A447; }
 .lesson.is-now .now-tag { display: inline-block; }
 .lesson.is-past { opacity: 0.45; }
-"""
+
+.empty { text-align: center; color: #888780; padding: 28px 0; margin: 12px 0;
+         border: 2px dashed #E5E1D8; border-radius: 16px; }
+footer { text-align: center; color: #B4B2A9; font-size: 12px; margin-top: 28px; }
+""" + color_styles()
 
 SCRIPT_PATH = Path(__file__).parent / "static" / "app.js"
 
@@ -235,7 +293,7 @@ def render_course_name(name: str) -> str:
 
 def render_lesson(lesson: Lesson) -> str:
     return (
-        f'<article class="lesson" data-start="{epoch_ms(lesson.start)}" data-end="{epoch_ms(lesson.end)}">'
+        f'<article class="lesson c-{course_color(lesson.name)}" data-start="{epoch_ms(lesson.start)}" data-end="{epoch_ms(lesson.end)}">'
         '<div class="top">'
         f'<span class="time">{escape(format_time_range(lesson))}</span>'
         '<span class="now-tag">● NOW</span>'
@@ -277,7 +335,7 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 <style>{PAGE_STYLE}</style>
 </head>
 <body>
-<h1>Kevin 的课表</h1>
+<h1>Kevin 的课表 <span class="heart">♡</span></h1>
 <p class="updated">时间均为北京时间 · 最后更新：{updated}</p>
 <nav class="pager" hidden>
 <button type="button" class="prev" aria-label="上一周">‹</button>
@@ -288,6 +346,7 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 <main>
 {body}
 </main>
+<footer>每 20 分钟自动更新 ♡</footer>
 <script>
 {script}
 </script>
