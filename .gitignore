@@ -1,0 +1,14 @@
+# 密钥：ics 订阅链接，绝不提交
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# 生成的网页
+_site/
+
+# macOS
+.DS_Store
