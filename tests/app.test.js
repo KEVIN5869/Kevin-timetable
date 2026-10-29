@@ -111,3 +111,10 @@ test("shouldReload 开着超过 30 分钟才重新加载", () => {
   assert.equal(app.shouldReload(loaded, loaded + 30 * 60 * 1000), false);
   assert.equal(app.shouldReload(loaded, loaded + 30 * 60 * 1000 + 1), true);
 });
+
+test("isStale 超过 12 小时没更新才提醒", () => {
+  const updated = utc("2026-11-02T04:00:00Z");
+  assert.equal(app.isStale(updated, updated + 6 * 60 * 60 * 1000), false);   // 平常的 6 小时延迟不提醒
+  assert.equal(app.isStale(updated, updated + 12 * 60 * 60 * 1000), false);
+  assert.equal(app.isStale(updated, updated + 12 * 60 * 60 * 1000 + 1), true);
+});

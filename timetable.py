@@ -240,6 +240,8 @@ body { font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft
 h1 { font-size: 22px; margin: 0; }
 .heart { color: #D4537E; }
 .updated { color: #888780; font-size: 12px; margin: 2px 0 16px; }
+.updated.is-stale { color: #854F0B; background: #FAEEDA; font-weight: 600;
+                    display: inline-block; padding: 2px 10px; border-radius: 10px; }
 
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 8px;
          background: #EEEDFE; border-radius: 16px; padding: 8px 10px; margin: 0 0 10px; }
@@ -336,7 +338,7 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 </head>
 <body>
 <h1>Kevin 的课表 <span class="heart">♡</span></h1>
-<p class="updated">时间均为北京时间 · 最后更新：{updated}</p>
+<p class="updated" data-updated="{epoch_ms(now)}">时间均为北京时间 · 最后更新：{updated}<span class="stale-note" hidden> · 课表可能不是最新</span></p>
 <nav class="pager" hidden>
 <button type="button" class="prev" aria-label="上一周">‹</button>
 <div class="pager-text"><div class="week-label"></div><div class="week-range"></div></div>

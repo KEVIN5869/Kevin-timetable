@@ -96,7 +96,14 @@
     return nowMs - loadedMs > RELOAD_AFTER_MS;
   }
 
+  // 网页数据超过 12 小时没更新，就提醒"课表可能不是最新"
+  var STALE_AFTER_MS = 12 * 60 * 60 * 1000;
+  function isStale(updatedMs, nowMs) {
+    return nowMs - updatedMs > STALE_AFTER_MS;
+  }
+
   var api = {
+    isStale: isStale,
     lessonState: lessonState,
     followIndex: followIndex,
     shouldReload: shouldReload,
@@ -150,6 +157,10 @@
       tag.setAttribute("data-label", label); // 样式按"今天/明天"配色
       tag.hidden = !label;
     });
+    var updated = doc.querySelector(".updated");
+    var stale = isStale(Number(updated.getAttribute("data-updated")), now);
+    updated.classList.toggle("is-stale", stale);
+    updated.querySelector(".stale-note").hidden = !stale;
     lessons.forEach(function (lesson) {
       var status = lessonState(
         Number(lesson.getAttribute("data-start")),

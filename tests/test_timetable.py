@@ -323,3 +323,13 @@ def test_day_tags_have_colors_for_today_and_tomorrow():
     assert '.day-tag[data-label="今天"]' in page
     assert '.day-tag[data-label="明天"]' in page
     assert 'tag.setAttribute("data-label", label)' in page
+
+
+# ---------- 数据过期提醒 ----------
+
+def test_page_records_update_time_for_stale_check():
+    page = build_page(SAMPLE, NOW)
+    # NOW = 2026-11-02 04:00 UTC
+    assert '<p class="updated" data-updated="1793592000000">' in page
+    assert '<span class="stale-note" hidden> · 课表可能不是最新</span>' in page
+    assert ".updated.is-stale {" in page
