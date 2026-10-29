@@ -108,7 +108,30 @@
     return barTop <= 0;
   }
 
+  // 打开网页时定位到哪一天（本周里的日期列表 dayKeys，按顺序）：
+  // 今天有课 → 今天；今天没课 → 本周接下来最近有课的一天；
+  // 本周的课都上完了，或者要定位的就是本周第一天（本来就在顶部）→ 不滚动（null）
+  function focusDayKey(dayKeys, todayKey) {
+    for (var i = 0; i < dayKeys.length; i++) {
+      if (dayKeys[i] >= todayKey) return i === 0 ? null : dayKeys[i];
+    }
+    return null;
+  }
+
+  // 定位到某一天时页面要滚到的位置：让这一天的标题刚好露在吸顶翻页栏下面
+  function focusScrollY(dayTopInPage, barHeight, gap) {
+    return Math.max(0, Math.round(dayTopInPage - barHeight - gap));
+  }
+
+  // 翻页后：如果已经往下滑过这一周的开头，就退回到这一周的开头；否则不动
+  function pageTurnScrollY(currentY, weekTopInPage, barHeight, gap) {
+    return Math.min(currentY, focusScrollY(weekTopInPage, barHeight, gap));
+  }
+
   var api = {
+    focusDayKey: focusDayKey,
+    focusScrollY: focusScrollY,
+    pageTurnScrollY: pageTurnScrollY,
     isStuck: isStuck,
     isStale: isStale,
     lessonState: lessonState,
@@ -180,15 +203,41 @@
     });
   }
 
+  var GAP = 8; // 定位后标题和翻页栏之间留的空隙
+
+  function pageTop(element) {
+    return element.getBoundingClientRect().top + window.pageYOffset;
+  }
+
+  // 翻页后回到这一周的开头
+  function scrollToWeekTop() {
+    var y = pageTurnScrollY(window.pageYOffset, pageTop(sections[index]), bar.offsetHeight, GAP);
+    window.scrollTo(0, y);
+  }
+
+  // 正在看本周时，滚动到今天（或本周接下来最近有课的一天）
+  function focusToday() {
+    var now = Date.now();
+    var section = sections[index];
+    if (weekKeys[index] !== weekKey(now)) return false;
+    var days = Array.prototype.slice.call(section.querySelectorAll(".day"));
+    var key = focusDayKey(days.map(function (d) { return d.getAttribute("data-date"); }), dateKey(now));
+    if (!key) return false;
+    var day = section.querySelector('.day[data-date="' + key + '"]');
+    window.scrollTo(0, focusScrollY(pageTop(day), bar.offsetHeight, GAP));
+    return true;
+  }
+
   pager.querySelector(".prev").addEventListener("click", function () {
-    if (index > 0) { index--; render(); }
+    if (index > 0) { index--; render(); scrollToWeekTop(); }
   });
   pager.querySelector(".next").addEventListener("click", function () {
-    if (index < weekKeys.length - 1) { index++; render(); }
+    if (index < weekKeys.length - 1) { index++; render(); scrollToWeekTop(); }
   });
   back.addEventListener("click", function () {
     index = pickWeekIndex(weekKeys, weekKey(Date.now()));
     render();
+    if (!focusToday()) scrollToWeekTop();
   });
 
   // 吸顶时给翻页栏加一点阴影
@@ -197,8 +246,11 @@
   }
   window.addEventListener("scroll", updateStuck, { passive: true });
 
+  // 打开（或自动重新加载）网页时直接定位到今天，不用浏览器记住的旧位置
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   bar.hidden = false;
   render();
+  focusToday();
   updateStuck();
   setInterval(render, 30 * 1000); // 每 30 秒更新 NOW 标签
 

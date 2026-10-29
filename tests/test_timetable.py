@@ -348,3 +348,9 @@ def test_back_button_lives_inside_the_pager():
     pager = page[page.index('<nav class="pager">'):page.index("</nav>")]
     assert '<button type="button" class="back" hidden>回到本周</button>' in pager
     assert page.count('class="back"') == 1
+
+
+def test_page_focuses_today_on_open():
+    page = build_page(SAMPLE, NOW)
+    assert "function focusDayKey" in page
+    assert 'history.scrollRestoration = "manual"' in page

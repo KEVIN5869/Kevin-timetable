@@ -125,3 +125,40 @@ test("isStuck 翻页栏到达屏幕顶部才算吸顶", () => {
   assert.equal(app.isStuck(0), true);
   assert.equal(app.isStuck(-0.5), true);
 });
+
+test("focusDayKey 今天有课时定位到今天", () => {
+  const days = ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"];
+  assert.equal(app.focusDayKey(days, "2026-10-29"), "2026-10-29");
+});
+
+test("focusDayKey 今天没课时定位到本周接下来最近有课的一天", () => {
+  const days = ["2026-10-27", "2026-10-30"];
+  assert.equal(app.focusDayKey(days, "2026-10-28"), "2026-10-30");
+});
+
+test("focusDayKey 本周的课都上完了（比如周末）就不滚动", () => {
+  const days = ["2026-10-27", "2026-10-30"];
+  assert.equal(app.focusDayKey(days, "2026-10-31"), null);
+  assert.equal(app.focusDayKey(days, "2026-11-01"), null);
+});
+
+test("focusDayKey 要定位的是本周第一天时不滚动（本来就在顶部）", () => {
+  const days = ["2026-10-27", "2026-10-30"];
+  assert.equal(app.focusDayKey(days, "2026-10-27"), null);
+  assert.equal(app.focusDayKey(days, "2026-10-26"), null); // 周一没课，最近的是周二
+});
+
+test("focusDayKey 本周没课时不滚动", () => {
+  assert.equal(app.focusDayKey([], "2026-10-28"), null);
+});
+
+test("focusScrollY 让标题刚好露在翻页栏下面", () => {
+  assert.equal(app.focusScrollY(900, 80, 8), 812);
+  assert.equal(app.focusScrollY(50, 80, 8), 0);       // 不会滚到负数
+  assert.equal(app.focusScrollY(900.6, 80, 8), 813);  // 取整
+});
+
+test("pageTurnScrollY 滑过了这一周开头才退回去", () => {
+  assert.equal(app.pageTurnScrollY(1500, 200, 80, 8), 112); // 已经滑到下面 → 退回这周开头
+  assert.equal(app.pageTurnScrollY(50, 200, 80, 8), 50);    // 还在上面 → 不动
+});
