@@ -333,3 +333,18 @@ def test_page_records_update_time_for_stale_check():
     assert '<p class="updated" data-updated="1793592000000">' in page
     assert '<span class="stale-note" hidden> · 课表可能不是最新</span>' in page
     assert ".updated.is-stale {" in page
+
+
+# ---------- 翻页栏吸顶 ----------
+
+def test_pager_bar_is_sticky():
+    page = build_page(SAMPLE, NOW)
+    assert ".pager-bar { position: sticky; top: 0;" in page
+    assert ".pager-bar.is-stuck {" in page
+
+
+def test_back_button_lives_inside_the_pager():
+    page = build_page(SAMPLE, NOW)
+    pager = page[page.index('<nav class="pager">'):page.index("</nav>")]
+    assert '<button type="button" class="back" hidden>回到本周</button>' in pager
+    assert page.count('class="back"') == 1

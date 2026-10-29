@@ -1,4 +1,5 @@
-// 课表网页的脚本：选出"本周"、翻页、标注"今天/明天"、正在上的课标 NOW、已上完的课变淡。
+// 课表网页的脚本：选出"本周"、翻页（翻页栏吸顶）、标注"今天/明天"、
+// 正在上的课标 NOW、已上完的课变淡、数据太旧时提醒。
 // 时间一律按北京时间（UTC+8，中国没有夏令时）计算，不受手机时区设置影响。
 // 上半部分是纯函数（有测试：tests/app.test.js），下半部分把结果显示到网页上。
 (function () {
@@ -102,7 +103,13 @@
     return nowMs - updatedMs > STALE_AFTER_MS;
   }
 
+  // 翻页栏是否已经吸在屏幕顶部（它离屏幕顶部的距离 ≤ 0）
+  function isStuck(barTop) {
+    return barTop <= 0;
+  }
+
   var api = {
+    isStuck: isStuck,
     isStale: isStale,
     lessonState: lessonState,
     followIndex: followIndex,
@@ -129,8 +136,9 @@
   var sections = Array.prototype.slice.call(doc.querySelectorAll(".week"));
   if (!sections.length) return;
   var weekKeys = sections.map(function (s) { return s.getAttribute("data-week"); });
-  var pager = doc.querySelector(".pager");
-  var back = doc.querySelector(".back");
+  var bar = doc.querySelector(".pager-bar");
+  var pager = bar.querySelector(".pager");
+  var back = pager.querySelector(".back");
   var loadedAt = Date.now();
   var shownCurrentKey = weekKey(loadedAt);
   var index = pickWeekIndex(weekKeys, shownCurrentKey);
@@ -183,8 +191,15 @@
     render();
   });
 
-  pager.hidden = false;
+  // 吸顶时给翻页栏加一点阴影
+  function updateStuck() {
+    bar.classList.toggle("is-stuck", isStuck(bar.getBoundingClientRect().top));
+  }
+  window.addEventListener("scroll", updateStuck, { passive: true });
+
+  bar.hidden = false;
   render();
+  updateStuck();
   setInterval(render, 30 * 1000); // 每 30 秒更新 NOW 标签
 
   // 手机切回这个网页时：立即刷新状态；开着太久就重新加载拿新课表

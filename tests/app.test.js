@@ -118,3 +118,10 @@ test("isStale 超过 12 小时没更新才提醒", () => {
   assert.equal(app.isStale(updated, updated + 12 * 60 * 60 * 1000), false);
   assert.equal(app.isStale(updated, updated + 12 * 60 * 60 * 1000 + 1), true);
 });
+
+test("isStuck 翻页栏到达屏幕顶部才算吸顶", () => {
+  assert.equal(app.isStuck(120), false);
+  assert.equal(app.isStuck(0.5), false);
+  assert.equal(app.isStuck(0), true);
+  assert.equal(app.isStuck(-0.5), true);
+});

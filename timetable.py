@@ -243,17 +243,21 @@ h1 { font-size: 22px; margin: 0; }
 .updated.is-stale { color: #854F0B; background: #FAEEDA; font-weight: 600;
                     display: inline-block; padding: 2px 10px; border-radius: 10px; }
 
+/* 翻页栏吸顶：外层铺满底色，往下滑时停在屏幕顶部，盖住下面滑过的内容 */
+.pager-bar { position: sticky; top: 0; z-index: 10; background: #FFFBF6;
+             margin: 0 -16px; padding: 8px 16px 10px; transition: box-shadow 0.2s; }
+.pager-bar.is-stuck { box-shadow: 0 6px 12px -8px rgba(44, 44, 42, 0.3); }
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 8px;
-         background: #EEEDFE; border-radius: 16px; padding: 8px 10px; margin: 0 0 10px; }
-.pager button { width: 36px; height: 36px; border: none; border-radius: 50%; background: #fff;
-                color: #534AB7; font-size: 22px; line-height: 1; cursor: pointer;
-                box-shadow: 0 1px 3px rgba(60, 52, 137, 0.15); }
-.pager button:disabled { opacity: 0.35; box-shadow: none; cursor: default; }
+         background: #EEEDFE; border-radius: 16px; padding: 8px 10px; }
+.pager .prev, .pager .next { width: 36px; height: 36px; flex: none; border: none; border-radius: 50%;
+                             background: #fff; color: #534AB7; font-size: 22px; line-height: 1;
+                             cursor: pointer; box-shadow: 0 1px 3px rgba(60, 52, 137, 0.15); }
+.pager .prev:disabled, .pager .next:disabled { opacity: 0.35; box-shadow: none; cursor: default; }
 .pager-text { text-align: center; }
 .week-label { font-weight: 600; color: #3C3489; }
 .week-range { font-size: 12px; color: #534AB7; }
-.back { display: block; margin: 0 auto 10px; padding: 4px 14px; font-size: 13px;
-        border: 1px solid #ED93B1; border-radius: 14px; background: #fff; color: #993556; }
+.back { display: inline-block; margin-top: 4px; padding: 1px 10px; font-size: 11px; cursor: pointer;
+        border: 1px solid #ED93B1; border-radius: 10px; background: #fff; color: #993556; }
 
 .week-title { font-size: 16px; color: #534AB7; margin: 24px 0 4px; }
 .js .week-title { display: none; }
@@ -339,12 +343,13 @@ def render_html(lessons: list[Lesson], now: datetime) -> str:
 <body>
 <h1>Kevin 的课表 <span class="heart">♡</span></h1>
 <p class="updated" data-updated="{epoch_ms(now)}">时间均为北京时间 · 最后更新：{updated}<span class="stale-note" hidden> · 课表可能不是最新</span></p>
-<nav class="pager" hidden>
+<div class="pager-bar" hidden>
+<nav class="pager">
 <button type="button" class="prev" aria-label="上一周">‹</button>
-<div class="pager-text"><div class="week-label"></div><div class="week-range"></div></div>
+<div class="pager-text"><div class="week-label"></div><div class="week-range"></div><button type="button" class="back" hidden>回到本周</button></div>
 <button type="button" class="next" aria-label="下一周">›</button>
 </nav>
-<button type="button" class="back" hidden>回到本周</button>
+</div>
 <main>
 {body}
 </main>
